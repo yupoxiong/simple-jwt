@@ -1,0 +1,25 @@
+{
+    "name": "yupoxiong/simple-jwt",
+    "description": "简易的jwt扩展包",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "yupoxiong",
+            "email": "i@yufuping.com",
+            "homepage": "https://www.yupoxiong.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-json": "*",
+        "ext-openssl": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "yupoxiong\\jwt\\": "src/"
+        },
+        "files": [
+            "src/helper/helper.php"
+        ]
+    }
+}
