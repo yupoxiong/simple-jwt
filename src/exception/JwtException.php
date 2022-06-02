@@ -7,9 +7,9 @@ declare (strict_types=1);
 
 namespace yupoxiong\jwt\exception;
 
-use Exception;
+use RuntimeException;
 
-class JwtException extends Exception
+class JwtException extends RuntimeException
 {
 
 }

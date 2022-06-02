@@ -13,6 +13,7 @@ use JsonException;
 
 class Jwt
 {
+    // 加密方式
     public const ALG = [
         'HS256' => 'sha256',
         'HS384' => 'sha384',
@@ -36,15 +37,12 @@ class Jwt
     protected array $payload = [];
     // 加密key
     protected string $key = '';
-
     // 错误消息
     protected string $message = '';
     // 私钥
     protected string $privateKey = '';
     // 公钥
     protected string $publicKey = '';
-    // token是否已过期
-    protected bool $expired;
 
     /**
      * 设置key
@@ -88,14 +86,43 @@ class Jwt
     }
 
     /**
+     * 获取当前设置的uid
+     * @return mixed
+     */
+    public function getUid()
+    {
+        return $this->getClaim('uid');
+    }
+
+    /**
      * 设置uid
      * @param $uid
      * @return $this
      */
     public function setUid($uid): Jwt
     {
-        return $this->setClaim('uid',$uid);
+        return $this->setClaim('uid', $uid);
     }
+
+    /**
+     * 获取当前设置的jti
+     * @return mixed
+     */
+    public function getJti()
+    {
+        return $this->getClaim('jti');
+    }
+
+    /**
+     * 设置jti
+     * @param $jti
+     * @return $this
+     */
+    public function setJti($jti): Jwt
+    {
+        return $this->setClaim('jti', $jti);
+    }
+
 
     /**
      * 设置claim
@@ -120,12 +147,44 @@ class Jwt
     }
 
     /**
-     * @param $payload
+     * 获取payload
+     * @return array
+     */
+    public function getPayload(): array
+    {
+        return $this->payload;
+    }
+
+    /**
+     * 设置payload
+     * @param array $payload
      * @return Jwt
      */
-    public function setPayload($payload): Jwt
+    public function setPayload(array $payload): Jwt
     {
         $this->payload = $payload;
+
+        foreach ($payload as $key => $item) {
+            if ($key === 'iat') {
+                $this->setIat($item);
+            }
+            if ($key === 'aud') {
+                $this->setAud($item);
+            }
+            if ($key === 'iss') {
+                $this->setIss($item);
+            }
+            if ($key === 'nbf') {
+                $this->setNbf($item);
+            }
+            if ($key === 'exp') {
+                $this->setExp($item);
+            }
+            if ($key === 'uid') {
+                $this->setUid($item);
+            }
+        }
+
         return $this;
     }
 
@@ -139,6 +198,14 @@ class Jwt
     }
 
     /**
+     * 设置过期时间
+     */
+    public function setExp($value): Jwt
+    {
+        return $this->setClaim('exp', $value);
+    }
+
+    /**
      * 获取可使用时间
      * @return mixed
      */
@@ -147,6 +214,16 @@ class Jwt
         return $this->getClaim('nbf');
     }
 
+    /**
+     * 设置可使用时间
+     * @param $value
+     * @return $this
+     */
+    public function setNbf($value): Jwt
+    {
+        $this->setClaim('nbf', $value);
+        return $this;
+    }
 
     /**
      * 获取签发者
@@ -157,6 +234,16 @@ class Jwt
         return $this->getClaim('iss');
     }
 
+    /**
+     *
+     * @param $value
+     * @return $this
+     */
+    public function setIss($value): Jwt
+    {
+        $this->setClaim('iss', $value);
+        return $this;
+    }
 
     /**
      * 获取使用者
@@ -168,12 +255,34 @@ class Jwt
     }
 
     /**
-     * 获取payload
-     * @return array
+     * 设置使用者
+     * @param $value
+     * @return $this
      */
-    public function getPayload(): array
+    public function setAud($value): Jwt
     {
-        return $this->payload;
+        $this->setClaim('aud', $value);
+        return $this;
+    }
+
+    /**
+     * 获取签发时间
+     * @return mixed
+     */
+    public function getIat()
+    {
+        return $this->getClaim('iat');
+    }
+
+    /**
+     * 设置签发时间
+     * @param $value
+     * @return $this
+     */
+    public function setIat($value): Jwt
+    {
+        $this->setClaim('iat', $value);
+        return $this;
     }
 
     /**
@@ -229,14 +338,18 @@ class Jwt
     {
         $array = explode('.', $token);
         if (count($array) !== 3) {
-            throw new JwtException('token格式不正确');
+            throw new JwtException('token格式错误');
         }
 
         [$header, $payload, $sign] = $array;
 
         $header_array = $this->jsonDecode($this->base64UrlDecode($header));
-        if (!isset($header_array['alg'])) {
+        if (!isset($header_array['alg']) || empty($header_array['alg'])) {
             throw new JwtException('未定义签名算法');
+        }
+
+        if (!array_key_exists($header_array['alg'], self::ALG)) {
+            throw new JwtException('不支持' . $header_array['alg'] . '签名算法');
         }
 
         $this->setAlg($header_array['alg']);
@@ -253,28 +366,30 @@ class Jwt
         $time = time();
 
         // 签发时间验证
-        if (isset($this->payload['iat']) && $this->payload['iat'] > $time) {
+        if (isset($this->payload['iat']) && $this->getIat() > $time) {
             $this->setMessage('签发时间晚于当前时间');
             return false;
         }
 
         // 过期时间验证
         if (isset($this->payload['exp']) && $this->payload['exp'] < $time) {
-            $this->setExpired(true);
             $this->setMessage('token已过期');
             return false;
         }
 
-        $this->setExpired(false);
-
         // 未到使用时间验证
-        if (isset($this->payload['nbf']) && $this->payload['nbf'] > $time) {
+        if (isset($this->payload['nbf']) && $this->getNbf() > $time) {
             $this->setMessage('未到使用时间');
             return false;
         }
 
-        return true;
+        // 过期时间验证
+        if (isset($this->payload['exp']) && $this->getExp() < $time) {
+            $this->setMessage('token已过期');
+            return false;
+        }
 
+        return true;
     }
 
     /**
@@ -304,7 +419,7 @@ class Jwt
                     throw new JwtException('请设置公钥');
                 }
 
-                if (!$this->verifyRsSign($header . '.' . $payload, $sign)) {
+                if (!$this->verifyRsaSign($header . '.' . $payload, $sign)) {
                     throw new JwtException('签名验证失败');
                 }
 
@@ -312,7 +427,6 @@ class Jwt
         }
 
         return true;
-
     }
 
     /**
@@ -321,7 +435,7 @@ class Jwt
      * @param $sign
      * @return bool
      */
-    public function verifyRsSign($data, $sign): bool
+    public function verifyRsaSign($data, $sign): bool
     {
         $signature = $this->base64UrlDecode($sign);
         $publicKey = openssl_get_publickey($this->getPublicKey());
@@ -338,15 +452,6 @@ class Jwt
     public function getKey(): string
     {
         return $this->key;
-    }
-
-    /**
-     * 获取当前设置的uid
-     * @return mixed
-     */
-    public function getUid()
-    {
-        return $this->getClaim('uid');
     }
 
     /**
@@ -450,25 +555,6 @@ class Jwt
 
         return $this;
     }
-
-    /**
-     * token是否已过期
-     * @return bool
-     */
-    public function isExpired(): bool
-    {
-        return $this->expired;
-    }
-
-    /**
-     * 设置当前token的过期状态
-     * @param bool $expired
-     */
-    protected function setExpired(bool $expired): void
-    {
-        $this->expired = $expired;
-    }
-
 
     /**
      * base64url解码
