@@ -9,8 +9,8 @@ declare (strict_types=1);
 namespace yupoxiong\jwt\example;
 
 use yupoxiong\jwt\exception\JwtException;
-use JsonException;
 use yupoxiong\jwt\Jwt;
+use JsonException;
 
 class JwtExample
 {
@@ -108,7 +108,7 @@ class JwtExample
         $jwt->setAlg('RS256');
         echo '加密方式：RSA256<br/>';
         // 私钥
-        $private_key = file_get_contents('extend/util/jwt/private.key');
+        $private_key = file_get_contents(__DIR__.'/private.key');
         echo '私钥：' . $private_key . '<br/>';
         // 设置加密key
         $jwt->setPrivateKey($private_key);
@@ -143,7 +143,7 @@ class JwtExample
         echo '需要验证的token为：' . $token;
 
         $jwt1 = new Jwt();
-        $public_key = file_get_contents('extend/util/jwt/public.key');
+        $public_key = file_get_contents(__DIR__.'/public.key');
         $result = $jwt1->setPublicKey($public_key)->checkToken($token);
 
         if ($result) {
